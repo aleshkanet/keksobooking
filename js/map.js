@@ -41,7 +41,6 @@
     rand = Math.round(rand);
     return rand;
   }
-
   function getRandomElement(arr) {
     var rand = Math.floor(Math.random() * arr.length);
     return arr[rand];
@@ -52,9 +51,8 @@
   function shuffleArray(arr) {
     return arr.sort(compareRandom);
   }
-
-  function renderNoticesData() {
-    var notices = [];
+  function renderOfferData() {
+    var offers = [];
 
     for (var i = 1; i <= OFFERS_AMOUNT; i++) {
       var locationX = getRandomInteger(MARKER_MIN_X, MARKER_MAX_X);
@@ -65,12 +63,12 @@
       var subsetLength = getRandomInteger(1, OFFER_FEATURES.length);
       var featuresSubset = OFFER_FEATURES.slice(0, subsetLength);
 
-      notices.push({
+      offers.push({
         'author': {
           'avatar': 'img/avatars/user0' + i + '.png',
         },
         'offer': {
-          'title': OFFER_TITLES[i],
+          'title': OFFER_TITLES[i - 1],
           'adress': locationX + ',' + locationY,
           'price': getRandomInteger(MIN_OFFER_PRICE, MAX_OFFER_PRICE),
           'type': getRandomElement(OFFER_TYPES),
@@ -88,7 +86,7 @@
         }
       });
     }
-    return notices;
+    return offers;
   }
 
   function renderPins(arr) {
@@ -102,6 +100,7 @@
       pinElement.setAttribute('style', 'left:' + current.location.x + 'px; top:' + current.location.y + 'px;');
       pinElement.querySelector('img').setAttribute('src', current.author.avatar);
       pinElement.setAttribute('alt', current.offer.title);
+      pinElement.setAttribute('data-key', i);
 
       pinList.appendChild(pinElement);
     }
@@ -158,18 +157,75 @@
     return cardElement;
   }
 
-  var offersData = renderNoticesData();
-
-  var pinsContainer = document.querySelector('.map__pins');
-  var pins = renderPins(offersData);
-  pinsContainer.appendChild(pins);
-
+  var offersData = renderOfferData();
   var map = document.querySelector('.map');
-
+  var pinsContainer = document.querySelector('.map__pins');
   var filterContainer = document.querySelector('.map__filters-container');
-  var offer = renderOffer(offersData[0]);
-  map.insertBefore(offer, filterContainer);
 
-  map.classList.remove('map--faded');
+  function showPins() {
+    var pins = renderPins(offersData);
+    pinsContainer.appendChild(pins);
+  }
+
+  function toggleLockForm(form) {
+    var fieldSets = form.querySelectorAll('fieldset');
+    for (var i = 0; i < fieldSets.length; i++) {
+      fieldSets[i].disabled = !fieldSets[i].disabled;
+    }
+  }
+
+  function activatePage() {
+    toggleLockForm(adForm);
+    showPins();
+    map.classList.remove('map--faded');
+    updateAdress();
+  }
+  function initAdress() {
+    var pinX = pin.offsetLeft + (pin.offsetWidth / 2);
+    var pinY = pin.offsetTop + (pin.offsetHeight / 2);
+    var addressField = document.querySelector('#address');
+    addressField.value = pinX + ',' + pinY;
+  }
+  function updateAdress() {
+    var pinX = pin.offsetLeft + (pin.offsetWidth / 2);
+    var pinY = pin.offsetTop - (pin.offsetHeight / 2) - 22;
+    var addressField = document.querySelector('#address');
+    addressField.value = pinX + ',' + pinY;
+  }
+  var adForm = document.querySelector('.ad-form');
+  if (adForm.classList.contains('ad-form--disabled')) {
+    toggleLockForm(adForm);
+  }
+
+  var mainPin = document.querySelector('.map__pin--main');
+  mainPin.addEventListener('mouseup', activatePage);
+
+  initAdress();
+
+  map.addEventListener('click', function (e) {
+    var clickedElement = e.target;
+    var tagName = clickedElement.tagName;
+    var targetParent = clickedElement.parentElement;
+    var hasKey = targetParent.hasAttribute('data-key');
+
+    if (hasKey) {
+      var key = targetParent.getAttribute('data-key');
+
+      if (tagName === 'IMG') {
+        var newOffer = renderOffer(offersData[key]);
+        newOffer.setAttribute('data-key', key);
+        var offer = map.querySelector('article[data-key="' + key + '"]');
+
+        if (offer) {
+          map.removeChild(offer);
+          map.insertBefore(offer, filterContainer);
+        } else {
+          map.insertBefore(newOffer, filterContainer);
+        }
+      } else if (tagName === 'BUTTON' && clickedElement.classList.contains('popup__close')) {
+        map.removeChild(targetParent);
+      }
+    }
+  });
 
 })();
